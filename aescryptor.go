@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 )
@@ -12,6 +13,17 @@ func generateIV() ([]byte, error) {
 	iv := make([]byte, aes.BlockSize)
 	_, err := rand.Read(iv)
 	return iv, err
+}
+
+func generateIVFromKey(key string) ([]byte, error) {
+	if len(key) != 32 {
+		return nil, errors.New("key must be 32 bytes long for AES-256")
+	}
+
+	hash := sha256.New()
+	hash.Write([]byte(key))
+	iv := hash.Sum(nil)[:aes.BlockSize]
+	return iv, nil
 }
 
 func pad(data []byte) []byte {
@@ -56,11 +68,16 @@ func decryptData(ciphertext, key, iv []byte) ([]byte, error) {
 	return unPad(ciphertext)
 }
 
-func EncryptAES(plaintext, key string) (string, error) {
-	if len(key) != 32 {
-		return "", errors.New("key must be 32 bytes long for AES-256")
+func EncryptAES(plaintext, key string, useRandomIV bool) (string, error) {
+	var iv []byte
+	var err error
+
+	if useRandomIV {
+		iv, err = generateIV()
+	} else {
+		iv, err = generateIVFromKey(key)
 	}
-	iv, err := generateIV()
+
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +90,7 @@ func EncryptAES(plaintext, key string) (string, error) {
 	return hex.EncodeToString(append(iv, ciphertext...)), nil
 }
 
-func DecryptAES(ciphertextHex, key string) (string, error) {
+func DecryptAES(ciphertextHex, key string, useRandomIV bool) (string, error) {
 	if len(key) != 32 {
 		return "", errors.New("key must be 32 bytes long for AES-256")
 	}
@@ -83,7 +100,18 @@ func DecryptAES(ciphertextHex, key string) (string, error) {
 		return "", errors.New("invalid ciphertext")
 	}
 
-	plaintext, err := decryptData(data[aes.BlockSize:], []byte(key), data[:aes.BlockSize])
+	var iv []byte
+	if useRandomIV {
+		iv = data[:aes.BlockSize]
+	} else {
+		iv, err = generateIVFromKey(key)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	ciphertext := data[aes.BlockSize:]
+	plaintext, err := decryptData(ciphertext, []byte(key), iv)
 	if err != nil {
 		return "", err
 	}

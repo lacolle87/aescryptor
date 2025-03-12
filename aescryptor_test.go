@@ -17,17 +17,38 @@ func TestGenerateIV(t *testing.T) {
 	}
 }
 
-func TestEncryptDecryptAES(t *testing.T) {
+func TestEncryptDecryptAES_WithRandomIV(t *testing.T) {
 	plaintext := "This is a test message"
 
-	// Encrypt the plaintext
-	ciphertextHex, err := EncryptAES(plaintext, key)
+	// Encrypt the plaintext with random IV
+	ciphertextHex, err := EncryptAES(plaintext, key, true) // Random IV
 	if err != nil {
 		t.Fatalf("EncryptAES() error = %v", err)
 	}
 
-	// Decrypt the ciphertext
-	decryptedText, err := DecryptAES(ciphertextHex, key)
+	// Decrypt the ciphertext with random IV
+	decryptedText, err := DecryptAES(ciphertextHex, key, true) // Random IV
+	if err != nil {
+		t.Fatalf("DecryptAES() error = %v", err)
+	}
+
+	// Verify that the decrypted text matches the original plaintext
+	if decryptedText != plaintext {
+		t.Errorf("DecryptAES() = %v, want %v", decryptedText, plaintext)
+	}
+}
+
+func TestEncryptDecryptAES_WithDerivedIV(t *testing.T) {
+	plaintext := "This is a test message"
+
+	// Encrypt the plaintext with derived IV from key
+	ciphertextHex, err := EncryptAES(plaintext, key, false) // Derived IV
+	if err != nil {
+		t.Fatalf("EncryptAES() error = %v", err)
+	}
+
+	// Decrypt the ciphertext with derived IV from key
+	decryptedText, err := DecryptAES(ciphertextHex, key, false) // Derived IV
 	if err != nil {
 		t.Fatalf("DecryptAES() error = %v", err)
 	}
@@ -41,7 +62,7 @@ func TestEncryptDecryptAES(t *testing.T) {
 func TestDecryptAES_InvalidData(t *testing.T) {
 	// Testing with invalid ciphertext
 	invalidCiphertext := "invalidhex"
-	_, err := DecryptAES(invalidCiphertext, key)
+	_, err := DecryptAES(invalidCiphertext, key, true) // Random IV
 	if err == nil {
 		t.Errorf("DecryptAES() expected error for invalid hex string, got nil")
 	}
@@ -49,8 +70,8 @@ func TestDecryptAES_InvalidData(t *testing.T) {
 
 func TestDecryptAES_ShortCiphertext(t *testing.T) {
 	// Testing with ciphertext that is too short to contain a valid IV and ciphertext
-	shortCiphertext := "abcd" // Less than aes.BlockSize bytes for IV
-	_, err := DecryptAES(shortCiphertext, key)
+	shortCiphertext := "abcd"                        // Less than aes.BlockSize bytes for IV
+	_, err := DecryptAES(shortCiphertext, key, true) // Random IV
 	if err == nil {
 		t.Errorf("DecryptAES() expected error for short ciphertext, got nil")
 	}
@@ -59,14 +80,14 @@ func TestDecryptAES_ShortCiphertext(t *testing.T) {
 func TestDecryptAES_InvalidKey(t *testing.T) {
 	// Encrypt with one key
 	plaintext := "Another test message"
-	ciphertextHex, err := EncryptAES(plaintext, key)
+	ciphertextHex, err := EncryptAES(plaintext, key, true) // Random IV
 	if err != nil {
 		t.Fatalf("EncryptAES() error = %v", err)
 	}
 
 	// Decrypt with a different key
-	incorrectKey := "incorrectkey1234567890123456" // Different key
-	_, err = DecryptAES(ciphertextHex, incorrectKey)
+	incorrectKey := "incorrectkey1234567890123456"         // Different key
+	_, err = DecryptAES(ciphertextHex, incorrectKey, true) // Random IV
 	if err == nil {
 		t.Errorf("DecryptAES() expected error for incorrect key, got nil")
 	}
@@ -75,7 +96,7 @@ func TestDecryptAES_InvalidKey(t *testing.T) {
 func TestDecryptAES_EmptyCiphertext(t *testing.T) {
 	// Test empty ciphertext string
 	emptyCiphertext := ""
-	_, err := DecryptAES(emptyCiphertext, key)
+	_, err := DecryptAES(emptyCiphertext, key, true) // Random IV
 	if err == nil {
 		t.Errorf("DecryptAES() expected error for empty ciphertext, got nil")
 	}

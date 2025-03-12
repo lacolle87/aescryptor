@@ -1,7 +1,6 @@
 package aescryptor
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
@@ -9,105 +8,85 @@ import (
 	"errors"
 )
 
-func generateAESKey(key string) ([]byte, error) {
-	keyBytes := []byte(key)
-	if len(keyBytes) != 32 {
-		return nil, errors.New("key must be 32 bytes long for AES-256")
-	}
-	return keyBytes, nil
-}
-
 func generateIV() ([]byte, error) {
 	iv := make([]byte, aes.BlockSize)
-	if _, err := rand.Read(iv); err != nil {
-		return nil, err
+	_, err := rand.Read(iv)
+	return iv, err
+}
+
+func pad(data []byte) []byte {
+	padLen := aes.BlockSize - len(data)%aes.BlockSize
+	padByte := byte(padLen)
+	for i := 0; i < padLen; i++ {
+		data = append(data, padByte)
 	}
-	return iv, nil
+	return data
 }
 
-func pad(plaintext []byte) []byte {
-	padding := aes.BlockSize - len(plaintext)%aes.BlockSize
-	return append(plaintext, bytes.Repeat([]byte{byte(padding)}, padding)...)
-}
-
-func unPad(plaintext []byte) ([]byte, error) {
-	padding := plaintext[len(plaintext)-1]
-	if padding > byte(len(plaintext)) {
+func unPad(data []byte) ([]byte, error) {
+	if len(data) == 0 {
 		return nil, errors.New("invalid padding")
 	}
-	return plaintext[:len(plaintext)-int(padding)], nil
+	padLen := int(data[len(data)-1])
+	if padLen > len(data) || padLen == 0 {
+		return nil, errors.New("invalid padding")
+	}
+	return data[:len(data)-padLen], nil
 }
 
-func encryptData(plaintext string, key []byte, iv []byte) ([]byte, error) {
+func encryptData(plaintext, key, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, err
 	}
 
-	paddedText := pad([]byte(plaintext))
-	encrypter := cipher.NewCBCEncrypter(block, iv)
-	ciphertext := make([]byte, len(paddedText))
-	encrypter.CryptBlocks(ciphertext, paddedText)
+	plaintext = pad(plaintext)
+	ciphertext := make([]byte, len(plaintext))
+	cipher.NewCBCEncrypter(block, iv).CryptBlocks(ciphertext, plaintext)
 	return ciphertext, nil
 }
 
-func decryptData(ciphertext []byte, key []byte, iv []byte) (string, error) {
+func decryptData(ciphertext, key, iv []byte) ([]byte, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	decrypter := cipher.NewCBCDecrypter(block, iv)
-	plaintext := make([]byte, len(ciphertext))
-	decrypter.CryptBlocks(plaintext, ciphertext)
-
-	unPaddedText, err := unPad(plaintext)
-	if err != nil {
-		return "", err
-	}
-	return string(unPaddedText), nil
+	cipher.NewCBCDecrypter(block, iv).CryptBlocks(ciphertext, ciphertext)
+	return unPad(ciphertext)
 }
 
 func EncryptAES(plaintext, key string) (string, error) {
-	keyBytes, err := generateAESKey(key)
-	if err != nil {
-		return "", err
+	if len(key) != 32 {
+		return "", errors.New("key must be 32 bytes long for AES-256")
 	}
-
 	iv, err := generateIV()
 	if err != nil {
 		return "", err
 	}
 
-	ciphertext, err := encryptData(plaintext, keyBytes, iv)
+	ciphertext, err := encryptData([]byte(plaintext), []byte(key), iv)
 	if err != nil {
 		return "", err
 	}
 
-	combined := append(iv, ciphertext...)
-	return hex.EncodeToString(combined), nil
+	return hex.EncodeToString(append(iv, ciphertext...)), nil
 }
 
 func DecryptAES(ciphertextHex, key string) (string, error) {
-	keyBytes, err := generateAESKey(key)
+	if len(key) != 32 {
+		return "", errors.New("key must be 32 bytes long for AES-256")
+	}
+
+	data, err := hex.DecodeString(ciphertextHex)
+	if err != nil || len(data) < aes.BlockSize {
+		return "", errors.New("invalid ciphertext")
+	}
+
+	plaintext, err := decryptData(data[aes.BlockSize:], []byte(key), data[:aes.BlockSize])
 	if err != nil {
 		return "", err
 	}
 
-	combined, err := hex.DecodeString(ciphertextHex)
-	if err != nil {
-		return "", err
-	}
-
-	if len(combined) < aes.BlockSize {
-		return "", errors.New("ciphertext too short")
-	}
-	iv := combined[:aes.BlockSize]
-	ciphertext := combined[aes.BlockSize:]
-
-	plaintext, err := decryptData(ciphertext, keyBytes, iv)
-	if err != nil {
-		return "", err
-	}
-	return plaintext, nil
+	return string(plaintext), nil
 }

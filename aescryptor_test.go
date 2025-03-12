@@ -7,32 +7,6 @@ import (
 
 const key string = "v7L0hezDBIJBc5P7YDAVJBohGTDIgYoY"
 
-func TestGenerateAESKey(t *testing.T) {
-	tests := []struct {
-		key      string
-		expected []byte
-		wantErr  bool
-	}{
-		{key, []byte(key), false},
-		{"shortkey", nil, true}, // Invalid key length
-		{"", nil, true},         // Empty key
-		{"thiskeyis32byteslongxxxxxxxxxxxx", []byte("thiskeyis32byteslongxxxxxxxxxxxx"), false}, // Valid 32-byte key
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.key, func(t *testing.T) {
-			got, err := generateAESKey(tt.key)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GenerateAESKey() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && string(got) != string(tt.expected) {
-				t.Errorf("GenerateAESKey() = %v, want %v", got, tt.expected)
-			}
-		})
-	}
-}
-
 func TestGenerateIV(t *testing.T) {
 	iv, err := generateIV()
 	if err != nil {

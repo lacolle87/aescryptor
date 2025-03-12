@@ -1,14 +1,15 @@
 # aescryptor
 
-`aescryptor` is a Go package that provides AES encryption and decryption functionality using AES-256 in CBC mode. It offers utility functions to securely encrypt and decrypt data, as well as handling padding and key management.
+`aescryptor` is a Go package that provides AES encryption and decryption functionality using AES-256 in CBC mode. It offers utility functions to securely encrypt and decrypt data, as well as handling padding, key management, and random or fixed IV generation.
 
 ## Features
 
 - **AES-256 Encryption**: Supports 32-byte keys for AES-256 encryption.
 - **CBC Mode**: Utilizes AES in CBC (Cipher Block Chaining) mode for encryption.
-- **Padding**: Automatically adds and removes padding for data that doesn't fit block size (16 bytes for AES).
+- **Padding**: Automatically adds and removes padding for data that doesn't fit the block size (16 bytes for AES).
 - **Hex Encoding**: Outputs ciphertext as a hexadecimal string.
 - **Secure Key and IV Generation**: Generates a 32-byte AES key and a random IV (Initialization Vector) for encryption.
+- **Fixed or Random IV Option**: Allows the user to specify whether to use a fixed or random IV during encryption and decryption.
 
 ## Installation
 
@@ -35,8 +36,9 @@ import (
 func main() {
 	plaintext := "This is a test message"
 	key := "v7L0hezDBIJBc5P7YDAVJBohGTDIgYoY"
+	useRandomIV := true // Set to false for fixed IV
 
-	ciphertext, err := aescryptor.EncryptAES(plaintext, key)
+	ciphertext, err := aescryptor.EncryptAES(plaintext, key, useRandomIV)
 	if err != nil {
 		fmt.Println("Error encrypting:", err)
 		return
@@ -61,8 +63,9 @@ import (
 func main() {
 	ciphertext := "yourEncryptedCiphertextHere"
 	key := "v7L0hezDBIJBc5P7YDAVJBohGTDIgYoY"
+	useRandomIV := true // Set to false for fixed IV
 
-	plaintext, err := aescryptor.DecryptAES(ciphertext, key)
+	plaintext, err := aescryptor.DecryptAES(ciphertext, key, useRandomIV)
 	if err != nil {
 		fmt.Println("Error decrypting:", err)
 		return
@@ -74,25 +77,27 @@ func main() {
 
 ## Functions
 
-### `EncryptAES(plaintext string, key string) (string, error)`
+### `EncryptAES(plaintext string, key string, useRandomIV bool) (string, error)`
 
-Encrypts the `plaintext` using the provided `key` (32-byte string for AES-256) and returns the encrypted data as a hexadecimal string.
+Encrypts the `plaintext` using the provided `key` (32-byte string for AES-256) and returns the encrypted data as a hexadecimal string. The function can use either a fixed or random IV based on the `useRandomIV` flag.
 
 #### Parameters
 - `plaintext`: The data to encrypt.
 - `key`: A 32-byte string used as the AES key.
+- `useRandomIV`: A boolean flag to determine whether to use a random IV. If `false`, a fixed IV is used.
 
 #### Returns
 - The encrypted data as a hexadecimal string.
 - An error if encryption fails.
 
-### `DecryptAES(ciphertextHex string, key string) (string, error)`
+### `DecryptAES(ciphertextHex string, key string, useRandomIV bool) (string, error)`
 
-Decrypts the `ciphertextHex` (hexadecimal string) using the provided `key` and returns the decrypted plaintext.
+Decrypts the `ciphertextHex` (hexadecimal string) using the provided `key` and returns the decrypted plaintext. The function can handle both random and fixed IVs based on the `useRandomIV` flag.
 
 #### Parameters
 - `ciphertextHex`: The encrypted data in hexadecimal format.
 - `key`: A 32-byte string used as the AES key.
+- `useRandomIV`: A boolean flag to determine whether to use a random IV. If `false`, a fixed IV is used.
 
 #### Returns
 - The decrypted plaintext string.
